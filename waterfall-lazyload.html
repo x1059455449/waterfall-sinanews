@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <script src="http://apps.bdimg.com/libs/jquery/1.9.1/jquery.min.js"></script>
+    <title>waterfall-lazyload</title>
+    <style>
+    /* * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+    .wrap {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+    #load {
+        visibility: hidden;
+    }
+    #list-ct {
+        list-style: none;
+        position: relative;
+    }
+    #list-ct .item {
+        position: absolute;
+        padding: 0 0 10px 0;
+		width: 280px;
+		margin: 10px;
+		border: 1px solid #DFDFDF;
+		background: #FFF;
+		opacity: 0;
+		transition: all .8s;
+    }
+    .item img {
+      width: 100%;
+    }
+    .hide {
+      display: none;
+    }
+
+    .item h4 {
+      border-bottom: 1px solid #ddd;
+      padding: 10px;
+    }
+
+    .item p {
+      padding: 10px;
+      font-size: 15px;
+      color: #3f3f3f;
+    } */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    .wrap {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    #load {
+      visibility: hidden;
+    }
+    #list-ct{
+      list-style: none;
+      position: relative;
+    }
+    #list-ct .item {
+      position: absolute;
+      width: 280px;
+      border: 1px solid #ddd;
+      margin: 5px;
+      padding: 10px;
+    }
+    .item img {
+      width: 100%;
+    }
+    .hide {
+      display: none;
+    }
+
+    .item h4 {
+      border-bottom: 1px solid #ddd;
+      padding: 10px;
+    }
+
+    .item p {
+      padding: 10px;
+      font-size: 15px;
+      color: #3f3f3f;
+    } 
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <div class="ct-waterfall">
+            <ul id="list-ct">
+                <!-- <li class="item">
+                    <a href="">
+                        <img src="" alt="">
+                    </a>
+                    <h4>标题</h4>
+                    <p>内容</p>
+                </li> -->
+                <li class="item hide"></li>
+            </ul>
+            <div id="load">看不见的DIV</div>
+        </div>
+    </div>
+
+    <script>
+    var sinaNews = {
+        init: function () {
+            this.curPage = 1
+            this.perPageCount = 10
+            //this.colSumHeight = []
+            this.colHeightArray = []
+            this.nodeWidth = $('.item').outerWidth(true)
+            this.colNum = Math.floor($('#list-ct').width()/this.nodeWidth)
+            //this.colNum = parseInt($('#list-ct').width()/this.nodeWidth)
+            this.isDataArrive = true
+            for(let i = 0;i < this.colNum;i++){
+                this.colHeightArray[i] = 0
+            }
+            this.bind()
+            this.start()
+        },
+        bind: function () {
+            let _this = this
+            $(window).scroll(function () {
+                if(!_this.isDataArrive) return
+                //如果选中的这个load元素已经出现在用户视野，则开始加载
+                if(_this.isVisible($('#load'))){
+                    _this.start()
+                }
+            })
+        },
+        isVisible: function ($e) {
+            return $e.offset().top < $(window).height() + $(window).scrollTop()
+        },
+        start: function () {
+            let _this = this
+            this.getData(function (newlist) {
+                console.log(newlist)
+                _this.isDataArrive = true
+                $.each(newlist,function (index,news) {
+                    console.log(index,news)
+                    let $node = _this.getNode(news)
+                    $node.find('img').load(function () {
+                        $('#list-ct').append($node)
+                        //console.log($node,'loading...')
+                        _this.render($node)
+                    })
+                })
+            })
+            _this.isDataArrive = false 
+        },
+        getData: function (callback) {
+            let _this = this
+            $.ajax({
+			url: 'http://platform.sina.com.cn/slide/album_tech',
+			dataType: 'jsonp',   
+			jsonp:"jsoncallback",//制定jsonp的名称
+			data: {
+				app_key: '1271687855',
+				num: this.perPageCount,
+				page: this.curPage
+			}
+		}).done(function(ret){
+			console.log(ret)
+            //一种约定的数据格式接口，为了保证一定有数据传过来
+            //直接写ret.status.code，无法保证前面没问题
+            //如果数据没问题，那么生成节点并摆放好位置 
+			if(ret && ret.status && ret.status.code === "0"){
+				callback(ret.data);   
+				_this.curPage++
+			}else{
+				console.log('failed loaded data..')
+			}
+		})
+        },
+        getNode: function (item) {
+            //console.log(item)
+            let tpl = `<li class="item">
+                    <a href="">
+                        <img src="" alt="">
+                    </a>
+                    <h4 class="header"></h4>
+                    <p class="detail"></p>
+                </li>`
+            $node = $(tpl)
+            $node.find('a').attr('href',item.url)
+            $node.find('img').attr('src',item.img_url)
+            $node.find('.header').text(item.short_name)
+            $node.find('.detail').text(item.name)           
+            return $node    
+        },
+        render: function ($node) {
+            //console.log(this)
+            let minValue = this.colHeightArray[0]
+            let minIndex = 0
+            //console.log(minValue,minIndex)
+            for(let i = 0;i <this.colNum;i++){
+            if(this.colHeightArray[i] < minValue){
+                minValue = this.colHeightArray[i]
+                minIndex = i
+                }
+            }
+            //console.log(minValue,minIndex)
+            //console.log(minIndex)
+            $node.css({
+            left: minIndex * this.nodeWidth,
+            top: minValue
+            })
+            console.log($node.outerHeight(true))
+            this.colHeightArray[minIndex] = $node.outerHeight(true) + this.colHeightArray[minIndex]
+            //console.log(this.colHeightArray)
+            $('#list-ct').height(Math.max.apply(null,this.colHeightArray))
+            }   
+    }
+    sinaNews.init()
+    </script>
+</body>
+</html>
